@@ -58,6 +58,15 @@ var ConfigsMap = map[string]*Config{
 		},
 		ReplacementsRef: AutogenDefaults,
 	},
+	"replicationcontrollers": {
+		Target: policiesv1beta1.Target{
+			Group:    "",
+			Version:  "v1",
+			Resource: "replicationcontrollers",
+			Kind:     "ReplicationController",
+		},
+		ReplacementsRef: AutogenDefaults,
+	},
 	"statefulsets": {
 		Target: policiesv1beta1.Target{
 			Group:    "apps",

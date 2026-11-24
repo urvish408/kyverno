@@ -85,4 +85,45 @@ func TestResolveConfig(t *testing.T) {
 
 		assert.Nil(t, ResolveConfig("widgets"))
 	})
+
+	t.Run("documented Kind name resolves to the same Config as its plural resource name", func(t *testing.T) {
+		t.Cleanup(func() {
+			BareNameResolver = nil
+			KindResolver = nil
+		})
+		// A live-cluster resolver that would treat "Deployment" as a literal
+		// resource name; normalization must win before this is consulted.
+		mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+		mapper.Add(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, meta.RESTScopeNamespace)
+		BareNameResolver = RESTMapperBareNameResolver(mapper)
+
+		cases := map[string]string{
+			"DaemonSet":             "daemonsets",
+			"Deployment":            "deployments",
+			"Job":                   "jobs",
+			"StatefulSet":           "statefulsets",
+			"ReplicaSet":            "replicasets",
+			"ReplicationController": "replicationcontrollers",
+			"CronJob":               "cronjobs",
+		}
+		for kind, plural := range cases {
+			got := ResolveConfig(kind)
+			if assert.NotNil(t, got, "ResolveConfig(%q) should not be nil", kind) {
+				assert.Equal(t, plural, got.Target.Resource, "ResolveConfig(%q) should resolve to %q", kind, plural)
+				assert.Equal(t, ConfigsMap[plural], got, "ResolveConfig(%q) should equal ConfigsMap[%q]", kind, plural)
+			}
+		}
+	})
+
+	t.Run("plural resource names are unchanged", func(t *testing.T) {
+		for _, name := range []string{
+			"daemonsets", "deployments", "jobs", "statefulsets",
+			"replicasets", "replicationcontrollers", "cronjobs",
+		} {
+			got := ResolveConfig(name)
+			if assert.NotNil(t, got, "ResolveConfig(%q) should not be nil", name) {
+				assert.Equal(t, name, got.Target.Resource, "ResolveConfig(%q).Target.Resource", name)
+			}
+		}
+	})
 }

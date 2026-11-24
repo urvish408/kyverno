@@ -70,6 +70,21 @@ func RESTMapperKindResolver(mapper meta.RESTMapper) func(schema.GroupVersionReso
 // spec ends up byte-identical to the original.
 const ExtractionReplacementsRef = "extract"
 
+// kindToPlural maps the Kind-style names documented for
+// spec.autogen.podControllers.controllers to the plural lowercase resource
+// names used as ConfigsMap keys, so both spellings resolve to the same
+// built-in Config instead of falling through to the live-cluster resolver
+// (which would treat "Deployment" as a literal resource name). See #18833.
+var kindToPlural = map[string]string{
+	"DaemonSet":             "daemonsets",
+	"Deployment":            "deployments",
+	"Job":                   "jobs",
+	"StatefulSet":           "statefulsets",
+	"ReplicaSet":            "replicasets",
+	"ReplicationController": "replicationcontrollers",
+	"CronJob":               "cronjobs",
+}
+
 // ResolveConfig turns a controller name from spec.autogen.podControllers.controllers
 // into a Config, trying in order: (1) ConfigsMap, for the built-in kinds,
 // unchanged; (2) the explicit "<resource>.<version>.<group>" format (e.g.
@@ -81,6 +96,11 @@ const ExtractionReplacementsRef = "extract"
 func ResolveConfig(name string) *Config {
 	if config := ConfigsMap[name]; config != nil {
 		return config
+	}
+	if plural, ok := kindToPlural[name]; ok {
+		if config := ConfigsMap[plural]; config != nil {
+			return config
+		}
 	}
 	if config := parseCustomControllerConfig(name); config != nil {
 		return config
